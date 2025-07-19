@@ -1,5 +1,4 @@
-
--- Fusion UI Framework v2.1
+-- Fusion UI Framework v2.2
 local Fusion = {}
 Fusion.__index = Fusion
 
@@ -23,6 +22,8 @@ Fusion.Themes = {
         SliderThumb = Color3.fromRGB(0, 150, 255),
         Highlight = Color3.fromRGB(85, 170, 255),
         Text = Color3.new(1, 1, 1),
+        TextBox = Color3.fromRGB(40, 40, 55),
+        TextBoxText = Color3.new(1, 1, 1),
         Shadow = Color3.fromRGB(15, 15, 20)
     },
     Blood = {
@@ -37,6 +38,8 @@ Fusion.Themes = {
         SliderThumb = Color3.fromRGB(220, 40, 40),
         Highlight = Color3.fromRGB(170, 60, 80),
         Text = Color3.new(1, 1, 1),
+        TextBox = Color3.fromRGB(60, 30, 30),
+        TextBoxText = Color3.new(1, 1, 1),
         Shadow = Color3.fromRGB(20, 10, 10)
     }
 }
@@ -405,6 +408,165 @@ function Fusion:CreateWindow(options)
                 return thumb
             end
 
+            -- NEW: TextBox element
+            function sectionApi:AddTextBox(defaultText, placeholder, callback)
+                local frame = createInstance("Frame", {
+                    Size = UDim2.new(0.95, 0, 0, 38),
+                    BackgroundTransparency = 1,
+                    Parent = tabContent
+                })
+
+                local textBox = createInstance("TextBox", {
+                    Size = UDim2.new(1, 0, 1, 0),
+                    Text = defaultText or "",
+                    PlaceholderText = placeholder or "Enter text...",
+                    ClearTextOnFocus = false,
+                    Font = Enum.Font.Gotham,
+                    TextSize = 14,
+                    TextColor3 = theme.TextBoxText,
+                    BackgroundColor3 = theme.TextBox,
+                    Parent = frame
+                })
+                createInstance("UICorner", {CornerRadius = UDim.new(0, 8), Parent = textBox})
+                createInstance("UIStroke", {Color = theme.TabActive, Thickness = 1, Parent = textBox})
+
+                -- Focus effects
+                textBox.Focused:Connect(function()
+                    tweenBackground(textBox, theme.Highlight)
+                end)
+
+                textBox.FocusLost:Connect(function()
+                    tweenBackground(textBox, theme.TextBox)
+                    if callback then callback(textBox.Text) end
+                end)
+
+                -- Mobile optimization
+                if UserInputService.TouchEnabled then
+                    textBox.TextWrapped = true
+                    textBox.TextXAlignment = Enum.TextXAlignment.Left
+                    textBox.TextYAlignment = Enum.TextYAlignment.Center
+                    createInstance("UIPadding", {
+                        PaddingLeft = UDim.new(0, 8),
+                        PaddingRight = UDim.new(0, 8),
+                        Parent = textBox
+                    })
+                end
+
+                return textBox
+            end
+
+            -- NEW: Label element
+            function sectionApi:AddLabel(text)
+                local label = createInstance("TextLabel", {
+                    Text = text,
+                    Font = Enum.Font.Gotham,
+                    TextSize = 14,
+                    TextColor3 = theme.Text,
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(0.95, 0, 0, 24),
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    Parent = tabContent
+                })
+                return label
+            end
+
+            -- NEW: Slider with TextBox combo
+            function sectionApi:AddPrecisionSlider(text, min, max, default, decimalPlaces, callback)
+                decimalPlaces = decimalPlaces or 2
+                local frame = createInstance("Frame", {
+                    Size = UDim2.new(0.95, 0, 0, 80),
+                    BackgroundTransparency = 1,
+                    Parent = tabContent
+                })
+
+                createInstance("TextLabel", {
+                    Text = text,
+                    Font = Enum.Font.Gotham,
+                    TextSize = 15,
+                    TextColor3 = theme.Text,
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(0.6, 0, 0, 24),
+                    Parent = frame
+                })
+
+                local textBox = createInstance("TextBox", {
+                    Size = UDim2.new(0.2, 0, 0, 24),
+                    Position = UDim2.new(0.6, 0, 0, 0),
+                    Text = string.format("%."..decimalPlaces.."f", default),
+                    PlaceholderText = "Value",
+                    Font = Enum.Font.Gotham,
+                    TextSize = 14,
+                    TextColor3 = theme.TextBoxText,
+                    BackgroundColor3 = theme.TextBox,
+                    Parent = frame
+                })
+                createInstance("UICorner", {CornerRadius = UDim.new(0, 6), Parent = textBox})
+                createInstance("UIStroke", {Color = theme.TabActive, Thickness = 1, Parent = textBox})
+
+                local track = createInstance("Frame", {
+                    Size = UDim2.new(1, 0, 0, 8),
+                    Position = UDim2.new(0, 0, 0, 40),
+                    BackgroundColor3 = theme.SliderTrack,
+                    Parent = frame
+                })
+                createInstance("UICorner", {CornerRadius = UDim.new(0, 6), Parent = track})
+
+                local thumb = createInstance("TextButton", {
+                    Size = UDim2.new(0, 16, 0, 20),
+                    Position = UDim2.new((default-min)/(max-min), -8, 0, 32),
+                    BackgroundColor3 = theme.SliderThumb,
+                    Text = "",
+                    AutoButtonColor = false,
+                    Parent = frame
+                })
+                createInstance("UICorner", {CornerRadius = UDim.new(0, 8), Parent = thumb})
+
+                local function formatValue(val)
+                    return string.format("%."..decimalPlaces.."f", val)
+                end
+
+                local function setValue(val)
+                    val = math.clamp(val, min, max)
+                    textBox.Text = formatValue(val)
+                    thumb.Position = UDim2.new((val-min)/(max-min), -8, 0, 32)
+                    if callback then callback(val) end
+                end
+
+                -- Slider interaction
+                local dragging = false
+                thumb.InputBegan:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                        dragging = true
+                    end
+                end)
+
+                UserInputService.InputEnded:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                        dragging = false
+                    end
+                end)
+
+                UserInputService.InputChanged:Connect(function(input)
+                    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                        local pos = math.clamp((input.Position.X - track.AbsolutePosition.X)/track.AbsoluteSize.X, 0, 1)
+                        local val = min + (max-min)*pos
+                        setValue(val)
+                    end
+                end)
+
+                -- TextBox interaction
+                textBox.FocusLost:Connect(function()
+                    local num = tonumber(textBox.Text)
+                    if num then
+                        setValue(num)
+                    else
+                        textBox.Text = formatValue(default)
+                    end
+                end)
+
+                return frame
+            end
+
             return sectionApi
         end
 
@@ -441,20 +603,28 @@ function Fusion:CreateWindow(options)
             applyTheme(tab.content, theme, {ScrollBarImageColor3 = "SliderThumb"})
             
             for _, child in ipairs(tab.content:GetChildren()) do
-                if child:IsA("Frame") and child:GetChildren()[1] and child:GetChildren()[1]:IsA("TextLabel") then
-                    applyTheme(child:GetChildren()[1], theme, {TextColor3 = "Text"})
-                elseif child:IsA("TextButton") then
-                    applyTheme(child, theme, {BackgroundColor3 = "Button", TextColor3 = "Text"})
-                    applyTheme(child.UIStroke, theme, {Color = "TabActive"})
-                elseif child:IsA("Frame") then
+                if child:IsA("Frame") then
                     for _, subChild in ipairs(child:GetChildren()) do
                         if subChild:IsA("TextLabel") then
                             applyTheme(subChild, theme, {TextColor3 = "Text"})
                         elseif subChild:IsA("TextButton") then
+                            if subChild.Text == "ON" or subChild.Text == "OFF" then
+                                applyTheme(subChild, theme, {
+                                    BackgroundColor3 = subChild.Text == "ON" and "ToggleOn" or "ToggleOff",
+                                    TextColor3 = "Text"
+                                })
+                            else
+                                applyTheme(subChild, theme, {
+                                    BackgroundColor3 = "Button",
+                                    TextColor3 = "Text"
+                                })
+                            end
+                        elseif subChild:IsA("TextBox") then
                             applyTheme(subChild, theme, {
-                                BackgroundColor3 = subChild.Text == "ON" and "ToggleOn" or "ToggleOff",
-                                TextColor3 = "Text"
+                                BackgroundColor3 = "TextBox",
+                                TextColor3 = "TextBoxText"
                             })
+                            applyTheme(subChild.UIStroke, theme, {Color = "TabActive"})
                         elseif subChild:IsA("Frame") then
                             applyTheme(subChild, theme, {BackgroundColor3 = "SliderTrack"})
                         end
