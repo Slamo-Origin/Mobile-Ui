@@ -1,0 +1,364 @@
+-- Fusion UI Framework v1.0
+local Fusion = {}
+
+-- Configuration
+Fusion.Themes = {
+    Dark = {
+        Background = Color3.fromRGB(20, 20, 25),
+        TopBar = Color3.fromRGB(30, 30, 40),
+        TabActive = Color3.fromRGB(45, 45, 60),
+        TabInactive = Color3.fromRGB(35, 35, 45),
+        Button = Color3.fromRGB(60, 60, 80),
+        ToggleOn = Color3.fromRGB(0, 180, 120),
+        ToggleOff = Color3.fromRGB(80, 30, 30),
+        SliderTrack = Color3.fromRGB(50, 50, 65),
+        SliderThumb = Color3.fromRGB(0, 150, 255),
+        Text = Color3.new(1, 1, 1)
+    },
+    Blood = {
+        Background = Color3.fromRGB(25, 15, 15),
+        TopBar = Color3.fromRGB(50, 20, 20),
+        TabActive = Color3.fromRGB(70, 25, 25),
+        TabInactive = Color3.fromRGB(45, 20, 20),
+        Button = Color3.fromRGB(80, 30, 30),
+        ToggleOn = Color3.fromRGB(180, 0, 0),
+        ToggleOff = Color3.fromRGB(50, 20, 20),
+        SliderTrack = Color3.fromRGB(60, 25, 25),
+        SliderThumb = Color3.fromRGB(220, 40, 40),
+        Text = Color3.new(1, 1, 1)
+    }
+}
+
+-- Create main window
+function Fusion:CreateWindow(options)
+    local Player = game:GetService("Players").LocalPlayer
+    local UIS = game:GetService("UserInputService")
+    local TweenService = game:GetService("TweenService")
+    
+    -- Configuration
+    local config = {
+        Name = options.Name or "Fusion UI",
+        Theme = options.Theme or "Dark",
+        KeySystem = options.KeySystem or false,
+        MobileOptimized = options.MobileOptimized or true
+    }
+    
+    local theme = Fusion.Themes[config.Theme]
+    
+    -- Main GUI
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "FusionUI"
+    ScreenGui.Parent = Player:WaitForChild("PlayerGui")
+    ScreenGui.ResetOnSpawn = false
+    ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    
+    -- Main window
+    local MainWindow = Instance.new("Frame")
+    MainWindow.Name = "MainWindow"
+    MainWindow.Size = UDim2.new(0.45, 0, 0.6, 0)
+    MainWindow.Position = UDim2.new(0.5, -MainWindow.Size.X.Offset/2, 0.5, -MainWindow.Size.Y.Offset/2)
+    MainWindow.BackgroundColor3 = theme.Background
+    MainWindow.BackgroundTransparency = 0.05
+    MainWindow.ClipsDescendants = true
+    MainWindow.Parent = ScreenGui
+    
+    -- Top bar
+    local TopBar = Instance.new("Frame")
+    TopBar.Size = UDim2.new(1, 0, 0.08, 0)
+    TopBar.BackgroundColor3 = theme.TopBar
+    TopBar.Parent = MainWindow
+    
+    local Title = Instance.new("TextLabel")
+    Title.Text = config.Name
+    Title.Size = UDim2.new(0.7, 0, 1, 0)
+    Title.Font = Enum.Font.GothamBold
+    Title.TextColor3 = theme.Text
+    Title.TextSize = config.MobileOptimized and 16 or 14
+    Title.TextXAlignment = Enum.TextXAlignment.Left
+    Title.PaddingLeft = UDim.new(0, 12)
+    Title.Parent = TopBar
+    
+    local CloseButton = Instance.new("TextButton")
+    CloseButton.Text = "X"
+    CloseButton.Size = UDim2.new(0.1, 0, 1, 0)
+    CloseButton.Position = UDim2.new(0.9, 0, 0, 0)
+    CloseButton.Font = Enum.Font.GothamBold
+    CloseButton.TextColor3 = Color3.new(1, 0.3, 0.3)
+    CloseButton.TextSize = 18
+    CloseButton.Parent = TopBar
+    
+    -- Tab system
+    local TabContainer = Instance.new("Frame")
+    TabContainer.Size = UDim2.new(1, 0, 0.08, 0)
+    TabContainer.Position = UDim2.new(0, 0, 0.08, 0)
+    TabContainer.BackgroundTransparency = 1
+    TabContainer.Parent = MainWindow
+    
+    local ContentContainer = Instance.new("ScrollingFrame")
+    ContentContainer.Size = UDim2.new(1, 0, 0.84, 0)
+    ContentContainer.Position = UDim2.new(0, 0, 0.16, 0)
+    ContentContainer.BackgroundTransparency = 1
+    ContentContainer.ScrollBarThickness = 4
+    ContentContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    ContentContainer.Parent = MainWindow
+    
+    -- Window API
+    local WindowAPI = {
+        Tabs = {},
+        CurrentTab = nil,
+        Theme = theme
+    }
+    
+    -- Tab creation
+    function WindowAPI:AddTab(name, icon)
+        local TabButton = Instance.new("TextButton")
+        TabButton.Name = name.."Tab"
+        TabButton.Text = name
+        TabButton.Size = UDim2.new(1/#WindowAPI.Tabs, -4, 1, 0)
+        TabButton.Position = UDim2.new((1/#WindowAPI.Tabs) * (#WindowAPI.Tabs), 0, 0, 0)
+        TabButton.BackgroundColor3 = theme.TabInactive
+        TabButton.Font = Enum.Font.Gotham
+        TabButton.TextColor3 = theme.Text
+        TabButton.TextSize = config.MobileOptimized and 14 or 12
+        TabButton.Parent = TabContainer
+        
+        local TabContent = Instance.new("Frame")
+        TabContent.Name = name.."Content"
+        TabContent.Size = UDim2.new(1, 0, 1, 0)
+        TabContent.BackgroundTransparency = 1
+        TabContent.Visible = false
+        TabContent.AutomaticSize = Enum.AutomaticSize.Y
+        TabContent.Parent = ContentContainer
+        
+        local TabAPI = {
+            Name = name,
+            Elements = {},
+            SectionYOffset = 0
+        }
+        
+        -- Section creation
+        function TabAPI:AddSection(name)
+            local Section = Instance.new("Frame")
+            Section.Name = name
+            Section.Size = UDim2.new(0.95, 0, 0, 0)
+            Section.Position = UDim2.new(0.025, 0, 0, TabAPI.SectionYOffset)
+            Section.BackgroundTransparency = 1
+            Section.AutomaticSize = Enum.AutomaticSize.Y
+            Section.Parent = TabContent
+            
+            local SectionTitle = Instance.new("TextLabel")
+            SectionTitle.Text = name
+            SectionTitle.Size = UDim2.new(1, 0, 0, 30)
+            SectionTitle.Font = Enum.Font.GothamBold
+            SectionTitle.TextColor3 = theme.Text
+            SectionTitle.TextSize = 14
+            SectionTitle.TextXAlignment = Enum.TextXAlignment.Left
+            SectionTitle.Parent = Section
+            
+            TabAPI.SectionYOffset = TabAPI.SectionYOffset + 35
+            
+            local SectionAPI = {
+                ElementYOffset = 35
+            }
+            
+            -- Button element
+            function SectionAPI:AddButton(text, callback)
+                local Button = Instance.new("TextButton")
+                Button.Text = text
+                Button.Size = UDim2.new(1, 0, 0, 40)
+                Button.Position = UDim2.new(0, 0, 0, SectionAPI.ElementYOffset)
+                Button.BackgroundColor3 = theme.Button
+                Button.Font = Enum.Font.Gotham
+                Button.TextColor3 = theme.Text
+                Button.TextSize = 14
+                Button.Parent = Section
+                
+                Button.MouseButton1Click:Connect(callback)
+                SectionAPI.ElementYOffset = SectionAPI.ElementYOffset + 45
+                TabAPI.SectionYOffset = TabAPI.SectionYOffset + 45
+            end
+            
+            -- Toggle element
+            function SectionAPI:AddToggle(text, default, callback)
+                local ToggleFrame = Instance.new("Frame")
+                ToggleFrame.Size = UDim2.new(1, 0, 0, 40)
+                ToggleFrame.Position = UDim2.new(0, 0, 0, SectionAPI.ElementYOffset)
+                ToggleFrame.BackgroundTransparency = 1
+                ToggleFrame.Parent = Section
+                
+                local ToggleLabel = Instance.new("TextLabel")
+                ToggleLabel.Text = text
+                ToggleLabel.Size = UDim2.new(0.8, 0, 1, 0)
+                ToggleLabel.Font = Enum.Font.Gotham
+                ToggleLabel.TextColor3 = theme.Text
+                ToggleLabel.TextSize = 14
+                ToggleLabel.TextXAlignment = Enum.TextXAlignment.Left
+                ToggleLabel.Parent = ToggleFrame
+                
+                local ToggleButton = Instance.new("TextButton")
+                ToggleButton.Size = UDim2.new(0.15, 0, 0.7, 0)
+                ToggleButton.Position = UDim2.new(0.85, 0, 0.15, 0)
+                ToggleButton.BackgroundColor3 = default and theme.ToggleOn or theme.ToggleOff
+                ToggleButton.Text = ""
+                ToggleButton.Parent = ToggleFrame
+                
+                local state = default
+                ToggleButton.MouseButton1Click:Connect(function()
+                    state = not state
+                    ToggleButton.BackgroundColor3 = state and theme.ToggleOn or theme.ToggleOff
+                    callback(state)
+                end)
+                
+                SectionAPI.ElementYOffset = SectionAPI.ElementYOffset + 45
+                TabAPI.SectionYOffset = TabAPI.SectionYOffset + 45
+            end
+            
+            -- Slider element
+            function SectionAPI:AddSlider(text, min, max, default, callback)
+                local SliderFrame = Instance.new("Frame")
+                SliderFrame.Size = UDim2.new(1, 0, 0, 60)
+                SliderFrame.Position = UDim2.new(0, 0, 0, SectionAPI.ElementYOffset)
+                SliderFrame.BackgroundTransparency = 1
+                SliderFrame.Parent = Section
+                
+                local SliderLabel = Instance.new("TextLabel")
+                SliderLabel.Text = text
+                SliderLabel.Size = UDim2.new(1, 0, 0, 20)
+                SliderLabel.Font = Enum.Font.Gotham
+                SliderLabel.TextColor3 = theme.Text
+                SliderLabel.TextSize = 14
+                SliderLabel.TextXAlignment = Enum.TextXAlignment.Left
+                SliderLabel.Parent = SliderFrame
+                
+                local ValueLabel = Instance.new("TextLabel")
+                ValueLabel.Text = tostring(default)
+                ValueLabel.Size = UDim2.new(0.2, 0, 0, 20)
+                ValueLabel.Position = UDim2.new(0.8, 0, 0, 0)
+                ValueLabel.Font = Enum.Font.GothamBold
+                ValueLabel.TextColor3 = theme.Text
+                ValueLabel.TextSize = 14
+                ValueLabel.Parent = SliderFrame
+                
+                local Track = Instance.new("Frame")
+                Track.Size = UDim2.new(1, 0, 0, 8)
+                Track.Position = UDim2.new(0, 0, 0, 30)
+                Track.BackgroundColor3 = theme.SliderTrack
+                Track.Parent = SliderFrame
+                
+                local Thumb = Instance.new("TextButton")
+                Thumb.Size = UDim2.new(0, 20, 0, 20)
+                Thumb.Position = UDim2.new((default - min)/(max - min), -10, 0, 25)
+                Thumb.BackgroundColor3 = theme.SliderThumb
+                Thumb.Text = ""
+                Thumb.Parent = SliderFrame
+                
+                -- Mobile slider logic
+                local function updateSlider(input)
+                    local pos = (input.Position.X - Track.AbsolutePosition.X) / Track.AbsoluteSize.X
+                    local value = math.floor(min + (max - min) * math.clamp(pos, 0, 1))
+                    ValueLabel.Text = tostring(value)
+                    Thumb.Position = UDim2.new(math.clamp(pos, 0, 1), -10, 0, 25)
+                    callback(value)
+                end
+                
+                Thumb.InputBegan:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.Touch then
+                        local connection
+                        connection = input.Changed:Connect(function()
+                            if input.UserInputState == Enum.UserInputState.End then
+                                connection:Disconnect()
+                            else
+                                updateSlider(input)
+                            end
+                        end)
+                    end
+                end)
+                
+                SectionAPI.ElementYOffset = SectionAPI.ElementYOffset + 65
+                TabAPI.SectionYOffset = TabAPI.SectionYOffset + 65
+            end
+            
+            return SectionAPI
+        end
+        
+        -- Tab activation
+        TabButton.MouseButton1Click:Connect(function()
+            if WindowAPI.CurrentTab then
+                WindowAPI.CurrentTab.TabContent.Visible = false
+                WindowAPI.CurrentTab.TabButton.BackgroundColor3 = theme.TabInactive
+            end
+            
+            TabContent.Visible = true
+            TabButton.BackgroundColor3 = theme.TabActive
+            WindowAPI.CurrentTab = TabAPI
+        end)
+        
+        -- Set first tab as active
+        if #WindowAPI.Tabs == 0 then
+            TabContent.Visible = true
+            TabButton.BackgroundColor3 = theme.TabActive
+            WindowAPI.CurrentTab = TabAPI
+        end
+        
+        table.insert(WindowAPI.Tabs, TabAPI)
+        return TabAPI
+    end
+    
+    -- Dragging functionality
+    local dragging, dragInput, dragStart, startPos
+    
+    local function updateInput(input)
+        local delta = input.Position - dragStart
+        MainWindow.Position = UDim2.new(
+            startPos.X.Scale, 
+            startPos.X.Offset + delta.X, 
+            startPos.Y.Scale, 
+            startPos.Y.Offset + delta.Y
+        )
+    end
+    
+    TopBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = MainWindow.Position
+        end
+    end)
+    
+    TopBar.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch and dragging then
+            dragInput = input
+        end
+    end)
+    
+    TopBar.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+    
+    UIS.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            updateInput(input)
+        end
+    end)
+    
+    -- Close button
+    CloseButton.MouseButton1Click:Connect(function()
+        ScreenGui:Destroy()
+    end)
+    
+    return WindowAPI
+end
+
+-- Notification system
+function Fusion:Notify(title, content, duration)
+    -- Notification implementation here
+end
+
+-- Watermark
+function Fusion:CreateWatermark(text)
+    -- Watermark implementation here
+end
+
+return Fusion
